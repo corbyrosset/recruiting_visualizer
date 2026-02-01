@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   RecruitingAPI,
   Candidate,
@@ -49,13 +49,15 @@ function App() {
   // Loading states
   const [loading, setLoading] = useState(true);
 
-  // Filtered candidates based on current filter
-  const filteredCandidates = candidates.filter(c => {
-    if (filter === 'starred') return c.starred;
-    if (filter === 'unviewed') return !c.viewed;
-    if (filter === 'with_notes') return c.has_notes;
-    return true;
-  });
+  // Filtered candidates based on current filter (memoized to prevent infinite loops)
+  const filteredCandidates = useMemo(() => {
+    return candidates.filter(c => {
+      if (filter === 'starred') return c.starred;
+      if (filter === 'unviewed') return !c.viewed;
+      if (filter === 'with_notes') return c.has_notes;
+      return true;
+    });
+  }, [candidates, filter]);
 
   // Load candidates list on mount
   useEffect(() => {
@@ -78,29 +80,34 @@ function App() {
     }
   };
 
-  // Load current candidate when index changes
+  // Compute the current candidate ID to load
+  const currentCandidateId = useMemo(() => {
+    if (filteredCandidates.length === 0 || searchResults) return null;
+    const clampedIndex = Math.min(currentIndex, filteredCandidates.length - 1);
+    return filteredCandidates[clampedIndex]?.id ?? null;
+  }, [currentIndex, filteredCandidates.length, searchResults, filteredCandidates]);
+
+  // Load current candidate when the ID changes
   useEffect(() => {
-    if (filteredCandidates.length > 0 && !searchResults) {
-      // Clamp index to filtered list bounds
-      const clampedIndex = Math.min(currentIndex, filteredCandidates.length - 1);
-      if (clampedIndex !== currentIndex) {
-        setCurrentIndex(clampedIndex);
-      } else {
-        loadCandidate(filteredCandidates[clampedIndex].id);
-      }
+    if (currentCandidateId !== null && currentCandidateId !== currentCandidate?.id) {
+      loadCandidate(currentCandidateId);
     }
-  }, [currentIndex, filteredCandidates, searchResults]);
+  }, [currentCandidateId]);
 
   const loadCandidate = async (id: number) => {
     const res = await RecruitingAPI.getCandidate(id);
     if (res.status && res.data) {
       setCurrentCandidate(res.data);
       setEditingNotes(res.data.notes || '');
-      // Update local state to reflect viewed status
-      setCandidates(prev =>
-        prev.map(c => (c.id === id ? { ...c, viewed: true } : c))
-      );
-      loadStats();
+      // Update local state to reflect viewed status (only if changed)
+      setCandidates(prev => {
+        const candidate = prev.find(c => c.id === id);
+        if (candidate && !candidate.viewed) {
+          loadStats(); // Only reload stats if viewed status changed
+          return prev.map(c => (c.id === id ? { ...c, viewed: true } : c));
+        }
+        return prev;
+      });
     }
   };
 
@@ -149,18 +156,27 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [goNext, goPrev, currentCandidate]);
 
-  // Star toggle
+  // Star toggle with optimistic update
   const toggleStar = async () => {
     if (!currentCandidate) return;
+    const newStarred = !currentCandidate.starred;
+
+    // Optimistic update - update UI immediately
+    setCurrentCandidate(prev => prev ? { ...prev, starred: newStarred } : null);
+    setCandidates(prev =>
+      prev.map(c => (c.id === currentCandidate.id ? { ...c, starred: newStarred } : c))
+    );
+
+    // Then sync with server
     const res = await RecruitingAPI.updateCandidate(currentCandidate.id, {
-      starred: !currentCandidate.starred,
+      starred: newStarred,
     });
-    if (res.status && res.data) {
-      setCurrentCandidate(res.data);
+    if (!res.status) {
+      // Revert on failure
+      setCurrentCandidate(prev => prev ? { ...prev, starred: !newStarred } : null);
       setCandidates(prev =>
-        prev.map(c => (c.id === res.data!.id ? { ...c, starred: res.data!.starred } : c))
+        prev.map(c => (c.id === currentCandidate.id ? { ...c, starred: !newStarred } : c))
       );
-      loadStats();
     }
   };
 
