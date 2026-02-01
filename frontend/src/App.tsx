@@ -82,10 +82,10 @@ function App() {
 
   // Compute the current candidate ID to load
   const currentCandidateId = useMemo(() => {
-    if (filteredCandidates.length === 0 || searchResults) return null;
+    if (filteredCandidates.length === 0) return null;
     const clampedIndex = Math.min(currentIndex, filteredCandidates.length - 1);
     return filteredCandidates[clampedIndex]?.id ?? null;
-  }, [currentIndex, filteredCandidates.length, searchResults, filteredCandidates]);
+  }, [currentIndex, filteredCandidates.length, filteredCandidates]);
 
   // Load current candidate when the ID changes
   useEffect(() => {
@@ -113,28 +113,35 @@ function App() {
 
   // Navigation
   const goNext = useCallback(() => {
-    if (searchResults) {
-      setSearchResults(null);
-      setSearchQuery('');
-    }
     setCurrentIndex(i => Math.min(i + 1, filteredCandidates.length - 1));
-  }, [filteredCandidates.length, searchResults]);
+  }, [filteredCandidates.length]);
 
   const goPrev = useCallback(() => {
-    if (searchResults) {
-      setSearchResults(null);
-      setSearchQuery('');
-    }
     setCurrentIndex(i => Math.max(i - 1, 0));
-  }, [searchResults]);
+  }, []);
 
   const goToCandidate = (id: number) => {
-    const idx = filteredCandidates.findIndex(c => c.id === id);
-    if (idx !== -1) {
-      setCurrentIndex(idx);
-      setSearchResults(null);
-      setSearchQuery('');
+    // When coming from search, reset filter to 'all' and directly load the candidate
+    if (searchResults) {
+      setFilter('all');
+      // Find index in full candidates list
+      const idx = candidates.findIndex(c => c.id === id);
+      if (idx !== -1) {
+        setCurrentIndex(idx);
+      }
+      // Directly load the candidate to ensure it shows immediately
+      loadCandidate(id);
+    } else {
+      const idx = filteredCandidates.findIndex(c => c.id === id);
+      if (idx !== -1) {
+        setCurrentIndex(idx);
+      }
     }
+  };
+
+  const clearSearch = () => {
+    setSearchResults(null);
+    setSearchQuery('');
   };
 
   // Keyboard navigation
@@ -267,12 +274,23 @@ function App() {
             <input
               type="text"
               placeholder="Search candidates..."
-              className="w-64 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-64 px-3 py-2 pr-8 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={searchQuery}
               onChange={e => handleSearch(e.target.value)}
             />
             {isSearching && (
               <div className="absolute right-3 top-2.5 text-gray-400">...</div>
+            )}
+            {searchQuery && !isSearching && (
+              <button
+                onClick={clearSearch}
+                className="absolute right-2 top-2 text-gray-400 hover:text-gray-600"
+                title="Clear search"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
             )}
           </div>
 
@@ -307,13 +325,13 @@ function App() {
               {searchResults.length} results for "{searchQuery}"
             </span>
             <button
-              onClick={() => {
-                setSearchResults(null);
-                setSearchQuery('');
-              }}
-              className="text-sm text-blue-600 hover:underline"
+              onClick={clearSearch}
+              className="text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full p-1 transition-colors"
+              title="Close search results"
             >
-              Clear search
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
             </button>
           </div>
           <div className="max-h-60 overflow-y-auto">
@@ -321,7 +339,9 @@ function App() {
               <div
                 key={result.id}
                 onClick={() => goToCandidate(result.id)}
-                className="p-2 hover:bg-gray-50 cursor-pointer rounded border-b last:border-b-0"
+                className={`p-2 hover:bg-gray-100 cursor-pointer rounded border-b last:border-b-0 ${
+                  currentCandidate?.id === result.id ? 'bg-blue-50 border-l-2 border-l-blue-500' : ''
+                }`}
               >
                 <div className="flex items-center gap-2">
                   {result.starred && <span className="text-yellow-500">&#9733;</span>}
@@ -378,9 +398,13 @@ function App() {
                   {currentCandidate.primary_email && (
                     <a
                       href={`mailto:${currentCandidate.primary_email}`}
-                      className="text-blue-600 hover:underline text-sm"
+                      title={`Send email to ${currentCandidate.primary_email}`}
+                      className="text-blue-600 hover:underline text-sm relative group"
                     >
                       {currentCandidate.primary_email}
+                      <span className="absolute bottom-full left-0 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                        Click to send email
+                      </span>
                     </a>
                   )}
                 </div>
@@ -410,10 +434,14 @@ function App() {
                         href={currentCandidate.linkedin_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline flex items-center gap-1"
+                        title={currentCandidate.linkedin_url}
+                        className="text-blue-600 hover:underline flex items-center gap-1 relative group"
                       >
                         <span>LinkedIn</span>
                         <span className="text-xs">↗</span>
+                        <span className="absolute top-full left-0 mt-1 px-2 py-1 bg-gray-800 text-white text-xs rounded hidden group-hover:block whitespace-nowrap max-w-xs truncate z-50 shadow-lg">
+                          {currentCandidate.linkedin_url}
+                        </span>
                       </a>
                     )}
                     {displayUrls.map((url, i) => {
@@ -430,10 +458,14 @@ function App() {
                           href={url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline flex items-center gap-1"
+                          title={url}
+                          className="text-blue-600 hover:underline flex items-center gap-1 relative group"
                         >
                           <span>{label}</span>
                           <span className="text-xs">↗</span>
+                          <span className="absolute top-full left-0 mt-1 px-2 py-1 bg-gray-800 text-white text-xs rounded hidden group-hover:block whitespace-nowrap max-w-xs truncate z-50 shadow-lg">
+                            {url}
+                          </span>
                         </a>
                       );
                     })}
