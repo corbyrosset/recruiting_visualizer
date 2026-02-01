@@ -23,6 +23,7 @@ class Candidate(SQLModel, table=True):
     # Flattened text for search
     experience_text: Optional[str] = None
     education_text: Optional[str] = None
+    cv_text: Optional[str] = None  # Extracted text from CV PDF
 
     # User review fields
     starred: bool = Field(default=False)

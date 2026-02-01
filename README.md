@@ -11,7 +11,10 @@ A webapp to quickly review and manage job applicants. Features a split-screen in
 - Star/unstar candidates
 - Add notes (auto-saved)
 - Track viewed/unviewed status
-- Search by name, company, school, or title
+- **Full-text search** across name, title, experience, education, and CV content (PDF text extraction)
+- **Filter candidates** by: All, Starred, Unviewed, With Notes
+- Search results with highlighted matches (click to view, stays open until dismissed)
+- Link tooltips showing destination URLs on hover
 - Keyboard navigation (arrow keys, j/k, s to star)
 - Statistics dashboard
 
@@ -115,5 +118,15 @@ uv run pytest tests/ -v
 
 ## Tech Stack
 
-- **Backend:** FastAPI, SQLModel, SQLite, uvicorn
+- **Backend:** FastAPI, SQLModel, SQLite, uvicorn, PyMuPDF (PDF text extraction)
 - **Frontend:** React, TypeScript, Vite, Tailwind CSS
+
+## Re-indexing Candidates
+
+If you need to re-extract CV text (e.g., after updating the text extraction logic), delete the database and restart:
+
+```bash
+del recruiting.db   # Windows
+rm recruiting.db    # Linux/Mac
+uv run python -m backend.app --reload --applicants "C:\path\to\applicants"
+```

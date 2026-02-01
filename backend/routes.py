@@ -113,7 +113,7 @@ def search_candidates(
     q: str = Query(..., min_length=1),
     session: Session = Depends(get_session),
 ) -> ApiResponse:
-    """Search candidates by name, experience, or education (whole word match)."""
+    """Search candidates by name, experience, education, or CV text (whole word match)."""
     import re
 
     query_pattern = f"%{q}%"
@@ -126,6 +126,7 @@ def search_candidates(
                 Candidate.experience_text.ilike(query_pattern),
                 Candidate.education_text.ilike(query_pattern),
                 Candidate.title.ilike(query_pattern),
+                Candidate.cv_text.ilike(query_pattern),
             )
         ).order_by(Candidate.full_name)
     ).all()
@@ -134,7 +135,7 @@ def search_candidates(
     word_pattern = re.compile(r'\b' + re.escape(q) + r'\b', re.IGNORECASE)
 
     def matches_whole_word(c: Candidate) -> bool:
-        fields = [c.full_name, c.experience_text, c.education_text, c.title]
+        fields = [c.full_name, c.experience_text, c.education_text, c.title, c.cv_text]
         return any(field and word_pattern.search(field) for field in fields)
 
     candidates = [c for c in candidates if matches_whole_word(c)]
