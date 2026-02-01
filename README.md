@@ -2,6 +2,9 @@
 
 A webapp to quickly review and manage job applicants. Features a split-screen interface with PDF resume viewer on the left and candidate information on the right.
 
+<img width="1909" height="929" alt="image" src="https://github.com/user-attachments/assets/db5de1f3-f0c3-40b8-bd23-7b17c0f243ea" />
+
+
 ## Features
 
 - Split-screen PDF viewer with candidate info
