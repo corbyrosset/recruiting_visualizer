@@ -12,7 +12,7 @@ except ImportError:
 from .models import Candidate
 
 # Default applicants path - can be overridden via set_applicants_path()
-_applicants_path: Path = Path(r"C:\Users\corbyrosset\OneDrive - Microsoft\Desktop\tahub\tahub\reqs\Senior-Researcher-Foundations-of-Generative-AI-Microsoft-Research\applicants")
+_applicants_path: Path = Path(r"C:\Users\corbyrosset\OneDrive - Microsoft\Desktop\tahub\tahub\reqs\Research-Software-Engineer-Multiple-Levels-AI-Frontiers\applicants")
 
 
 def get_applicants_path() -> Path:

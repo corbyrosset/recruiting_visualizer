@@ -11,6 +11,15 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Dark mode base styles */
+.dark {
+  color-scheme: dark;
+}
+
+html.dark {
+  background-color: #111827;
+}
+
 /* PDF iframe styling */
 .pdf-viewer {
   width: 100%;
